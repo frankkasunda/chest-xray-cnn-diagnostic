@@ -8,13 +8,31 @@ st.set_page_config(page_title="Pneumonia Diagnostic Tool", page_icon="🫁")
 st.title("Pediatric Pneumonia Diagnostic Assistant 🫁")
 st.write("Upload a pediatric anterior-posterior chest X-ray to receive an automated AI screening.")
 
-# 2. Cache the model so it doesn't reload every time a user uploads an image
+# 2. Rebuild architecture and load weights safely
 @st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model('pneumonia_detection_model.h5')
+def load_trained_model():
+    # Recreate the exact base model structure
+    base_model = tf.keras.applications.MobileNetV2(
+        input_shape=(224, 224, 3),
+        include_top=False,
+        weights=None 
+    )
+    base_model.trainable = False
+
+    # Recreate the custom classification head
+    model = tf.keras.Sequential([
+        base_model,
+        tf.keras.layers.GlobalAveragePooling2D(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    
+    # Load the trained weights securely into the blueprint
+    model.load_weights('pneumonia.weights.h5')
     return model
 
-model = load_model()
+model = load_trained_model()
 
 # 3. Create the File Uploader
 uploaded_file = st.file_uploader("Choose an X-ray image (JPG/PNG)", type=["jpg", "jpeg", "png"])
